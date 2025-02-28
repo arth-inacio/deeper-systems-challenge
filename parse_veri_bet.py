@@ -139,7 +139,7 @@ async def main() -> None:
     
     # Convert items to a list of dictionaries
     data_dicts = [asdict(item) for item in items]
-    # print(json.dumps(data_dicts, indent=4))
+    print(json.dumps(data_dicts, indent=4))
 
 if __name__ == "__main__":
     asyncio.run(main())
