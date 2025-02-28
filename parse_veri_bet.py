@@ -51,7 +51,7 @@ class Item:
         html = await self.page.content()
         soup = BeautifulSoup(html, "html.parser")
         tables = soup.find_all("table", {"style": "margin-top: 12px; margin-bottom: 15px;"})
-        
+
         return  await self._table_extraction(tables)
 
     async def _table_extraction(self, tables) -> list:
@@ -96,28 +96,27 @@ class Item:
                         team=side,
                         spread=float(spread),
                     )
-                    listing_information.append(item)
                 except (IndexError, AttributeError):
                     continue
-                break
+                listing_information.append(item)
         return listing_information
 
     async def _timezone_ajust(self, date: str) -> str:
         hour = re.search(r"(\d*\:\d*\s\w{2})", str(date), re.S)[1]
         date_reg = re.search(r"(\d*\/\d*\/\d{4})", str(date), re.S)[1] 
 
-        # Criar um datetime a partir da string
+        # Creates an datetime by string
         et_tz = pytz.timezone("America/New_York")  # ET (Eastern Time)
         utc_tz = pytz.utc  # UTC
 
-        # Converter para datetime com timezone
+        # Converts to datetimew with timezone
         event_datetime = datetime.strptime(f"{date_reg} {hour}", "%m/%d/%Y %I:%M %p")
-        event_datetime = et_tz.localize(event_datetime)  # Definir como horário de ET
+        event_datetime = et_tz.localize(event_datetime)  # ET defined
 
-        # Converter para UTC
+        # Convertion to UTC
         event_datetime_utc = event_datetime.astimezone(utc_tz)
 
-        # Formatar no padrão ISO 8601
+        # Parsing to ISO 8601
         iso_format = event_datetime_utc.strftime("%Y-%m-%dT%H:%M:%S%z")
         iso_format = iso_format[:-2] + ":" + iso_format[-2:]
         return iso_format
