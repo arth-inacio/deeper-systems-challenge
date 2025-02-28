@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 import re
 import asyncio
+from zoneinfo import ZoneInfo
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright, TimeoutError
 from dataclasses import dataclass
@@ -33,7 +34,7 @@ class Item:
         await self.playwright.stop()
         await self.browser.close()
     
-    async def _login_access(self):
+    async def _login_access(self) -> list:
         listagem = []
         await self.page.goto("https://veri.bet/simulator", timeout=50000)
 
@@ -42,33 +43,57 @@ class Item:
         await self.page.wait_for_selector("#odds-picks_filter")
         await self.page.wait_for_timeout(5000)
 
-        timestamp = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+        # Selecte the upcoming option
+        await self.page.get_by_role("link", name="upcoming").click(timeout=10000)
+        await self.page.wait_for_selector("#odds-picks_filter")
+
         html = await self.page.content()
         soup = BeautifulSoup(html, "html.parser")
         tables = soup.find_all("table", {"style": "margin-top: 12px; margin-bottom: 15px;"})
+
         for table in tables:
             lines = table.find_all("tr")
             league = re.search(r"sport=(.*?)\"", str(table), re.S).group(1)
+            teams = re.findall(r"betting-trends.*?font-size:\s\.\d*rem\;\">(.*?)<", str(table), re.S)
+            
+            # Date conversion to timestamp
+            game_date = re.search(r"(\d:\d*\s.*?\))", str(table), re.S).group(1)
+           
+            hour = re.search(r"(\d*\:\d*\s\w{2})", str(game_date), re.S)[1]
+            date = re.search(r"(\d*\/\d*\/\d{4})", str(game_date), re.S)[1].replace("0:00 AM", "12:00 AM") 
+        
+            # Converting to date time
+            date = datetime.strptime(f'{hour} {date}', "%I:%M %p %m/%d/%Y").replace(tzinfo=ZoneInfo("America/New_York"))
+
+            # Converting to UTC
+            dt_utc = date.astimezone(ZoneInfo("UTC"))
+
+            # Parsin to ISO
+            date_iso = dt_utc.date().isoformat()
+
             for line in lines[1:]:
                 span = line.find_all("span")
-
-                item = Item(
-                    sport_league=league,
-                    event_date_utc=timestamp,
-                    team1=span[0].text.strip(),
-                    team2=span[3].text.strip(),
-                    pitcher=span[4].text.strip(),
-                    period=span[5].text.strip(),
-                    line_type=span[6].text.strip(),
-                    price=span[4].text.strip(),
-                    side=span[0].text.strip(),
-                    team=span[0].text.strip(),
-                    spread=float(re.search(r"(.*?)\s*\(", span[6].text.strip(), re.S).group(1))
-                )
+                try:
+                    spread = re.search(r"(.*?)\s*\(", span[2].text.strip(), re.S).group(1)
+                    item = Item(
+                        sport_league=league,
+                        event_date_utc=date_iso,
+                        team1=teams[0],
+                        team2=teams[1],
+                        pitcher="",
+                        period="FULL GAME",
+                        line_type="moneyline",
+                        price=span[1].text.strip(),
+                        side=span[0].text.strip(),
+                        team=span[0].text.strip(),
+                        spread=float(spread),
+                    )
+                    print(item)
+                    print('==========')
+                except (IndexError, AttributeError):
+                    continue
                 listagem.append(item)
         return listagem
-
-            
             
 async def main() -> None:
     item = Item()
