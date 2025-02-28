@@ -96,9 +96,12 @@ class Item:
                         team=side,
                         spread=float(spread),
                     )
+                    listing_information.append(item)
                 except (IndexError, AttributeError):
                     continue
-                listing_information.append(item)
+                break
+            print(item)
+            print('======')
         return listing_information
 
     async def _timezone_ajust(self, date: str) -> str:
@@ -136,7 +139,7 @@ async def main() -> None:
     
     # Convert items to a list of dictionaries
     data_dicts = [asdict(item) for item in items]
-    print(json.dumps(data_dicts, indent=4))
+    # print(json.dumps(data_dicts, indent=4))
 
 if __name__ == "__main__":
     asyncio.run(main())
