@@ -12,6 +12,15 @@
 
   <pre><code>python parse_veri_bet.py -h</code></pre>
 
+  <h2>Install Dependencies</h3>
+  <pre><code>pip install -r requirements.txt</code></pre>
+  
+  <h2>Install Playwright (Required for Web Scraping)</h3>
+  <pre><code>playwright install</code></pre>
+  
+  <p>If using Playwright with browsers:</p>
+  <pre><code>playwright install-deps</code></pre>
+
   <h2>Files</h2>
   <ul>
       <li><code>parse_veri_bet.py</code>: The main script for data parsing.</li>
