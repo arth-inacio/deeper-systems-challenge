@@ -100,8 +100,6 @@ class Item:
                 except (IndexError, AttributeError):
                     continue
                 break
-            print(item)
-            print('======')
         return listing_information
 
     async def _timezone_ajust(self, date: str) -> str:
