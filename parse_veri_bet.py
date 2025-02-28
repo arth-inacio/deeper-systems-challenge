@@ -5,7 +5,8 @@ import asyncio
 import json
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright, TimeoutError
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from typing import List
 
 @dataclass
 class Item:
@@ -50,10 +51,11 @@ class Item:
         html = await self.page.content()
         soup = BeautifulSoup(html, "html.parser")
         tables = soup.find_all("table", {"style": "margin-top: 12px; margin-bottom: 15px;"})
-        await self._table_extraction(tables)
+        
+        return  await self._table_extraction(tables)
 
     async def _table_extraction(self, tables) -> list:
-        listin_information = []
+        listing_information = []
         for table in tables:
             lines = table.find_all("tr")
             league = re.search(r"sport=(.*?)\"", str(table), re.S).group(1)
@@ -94,10 +96,11 @@ class Item:
                         team=side,
                         spread=float(spread),
                     )
+                    listing_information.append(item)
                 except (IndexError, AttributeError):
                     continue
                 break
-        return listin_information
+        return listing_information
 
     async def _timezone_ajust(self, date: str) -> str:
         hour = re.search(r"(\d*\:\d*\s\w{2})", str(date), re.S)[1]
@@ -120,16 +123,21 @@ class Item:
         return iso_format
 
 async def main() -> None:
+    items: List[Item] = []
     item = Item()
     await item.playwright_start()
     for _ in range(3):
         try:
             data = await item._login_access()
+            items.extend(data)
         except TimeoutError:
             continue
         break
     await item.playwright_finish()
-    print(json.dumps(data, indent=4))
+    
+    # Convert items to a list of dictionaries
+    data_dicts = [asdict(item) for item in items]
+    print(json.dumps(data_dicts, indent=4))
 
 if __name__ == "__main__":
     asyncio.run(main())
