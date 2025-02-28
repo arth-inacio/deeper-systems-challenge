@@ -47,12 +47,13 @@ class Item:
         # Selecte the upcoming option
         await self.page.get_by_role("link", name="upcoming").click(timeout=10000)
         await self.page.wait_for_selector("#odds-picks_filter")
+        await self.page.wait_for_timeout(2000)
 
         html = await self.page.content()
         soup = BeautifulSoup(html, "html.parser")
         tables = soup.find_all("table", {"style": "margin-top: 12px; margin-bottom: 15px;"})
 
-        return  await self._table_extraction(tables)
+        return await self._table_extraction(tables)
 
     async def _table_extraction(self, tables) -> list:
         listing_information = []
@@ -70,36 +71,39 @@ class Item:
 
             for line in lines[1:]:
                 span = line.find_all("span")
-                try:
-                    side = span[0].text.strip()
-                    if re.search(r"DRAW", str(table), re.S):
-                        side = "DRAW"
-                    spread = re.search(r"(.*?)\s*\(", span[2].text.strip(), re.S).group(1)
 
-                    if not spread or spread == "0.00":
-                        line_type = "moneyline"
-                    elif re.search(r"(\d+\.?\d*)", str(spread), re.S):
-                        line_type = "over/under"
-                    elif re.search(r"([-+]?\d+\.?\d*)", str(spread), re.S):
-                        line_type = "spread"
-
-                    item = Item(
-                        sport_league=league,
-                        event_date_utc=iso_format,
-                        team1=teams[0],
-                        team2=teams[1],
-                        pitcher="",
-                        period="FULL GAME",
-                        line_type=line_type,
-                        price=span[1].text.strip(),
-                        side=side,
-                        team=side,
-                        spread=float(spread),
-                    )
-                    listing_information.append(item)
-                except (IndexError, AttributeError):
+                if len(span) < 2:
                     continue
-                break
+                
+                side = span[0].text.strip()
+                if re.search(r"DRAW", str(table), re.S):
+                    side = "DRAW"
+
+                try:
+                    spread = re.search(r"(.*?)\s*\(", span[2].text.strip(), re.S).group(1)
+                except (IndexError, AttributeError):
+                    spread = False
+
+                if not spread or spread == "0.00":
+                    line_type = "moneyline"
+                elif re.search(r"(\d+\.?\d*)", str(spread), re.S):
+                    line_type = "over/under"
+                elif re.search(r"([-+]?\d+\.?\d*)", str(spread), re.S):
+                    line_type = "spread"
+
+                item = Item(
+                    sport_league=league,
+                    event_date_utc=iso_format,
+                    team1=teams[0],
+                    team2=teams[1],
+                    period="FULL GAME",
+                    line_type=line_type,
+                    price=span[1].text.strip(),
+                    side=side,
+                    team=side,
+                    spread=float(spread),
+                )
+                listing_information.append(item) 
         return listing_information
 
     async def _timezone_ajust(self, date: str) -> str:
