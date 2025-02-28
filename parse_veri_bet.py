@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 import re
 import asyncio
 from bs4 import BeautifulSoup
@@ -33,6 +34,7 @@ class Item:
         await self.browser.close()
     
     async def _login_access(self):
+        listagem = []
         await self.page.goto("https://veri.bet/simulator", timeout=50000)
 
         # Access to simulator button
@@ -40,24 +42,42 @@ class Item:
         await self.page.wait_for_selector("#odds-picks_filter")
         await self.page.wait_for_timeout(5000)
 
+        timestamp = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
         html = await self.page.content()
         soup = BeautifulSoup(html, "html.parser")
-        table = soup.find("table", {"class": "display no-footer dataTable"})
-        lines = table.find_all("tr", {"role": "even"})
+        tables = soup.find_all("table", {"style": "margin-top: 12px; margin-bottom: 15px;"})
+        for table in tables:
+            lines = table.find_all("tr")
+            league = re.search(r"sport=(.*?)\"", str(table), re.S).group(1)
+            for line in lines[1:]:
+                span = line.find_all("span")
 
-        for line in lines:
-            td = line.find_all("td")
-            if not td:
-                continue
-            print(td)
+                item = Item(
+                    sport_league=league,
+                    event_date_utc=timestamp,
+                    team1=span[0].text.strip(),
+                    team2=span[3].text.strip(),
+                    pitcher=span[4].text.strip(),
+                    period=span[5].text.strip(),
+                    line_type=span[6].text.strip(),
+                    price=span[4].text.strip(),
+                    side=span[0].text.strip(),
+                    team=span[0].text.strip(),
+                    spread=float(re.search(r"(.*?)\s*\(", span[6].text.strip(), re.S).group(1))
+                )
+                listagem.append(item)
+        return listagem
 
+            
+            
 async def main() -> None:
     item = Item()
     await item.playwright_start()
-    try:
-        await item._login_access()
-    except TimeoutError:
-        raise TimeoutError("Connection error! Try again later!")
+    for _ in range(3):
+        try:
+            await item._login_access()
+        except TimeoutError:
+            continue
     await item.playwright_finish()
 
 if __name__ == "__main__":
